@@ -51,18 +51,29 @@ namespace FishMMO.Database.Npgsql.Services
 			var result = await ExecuteWriteAsync(async dbContext =>
 			{
 				var sql = $@"INSERT INTO {TableName} (login_server_id, hmac_key)
-					VALUES ({{0}}, {{1}})
+					VALUES (@login_server_id, @hmac_key)
 					ON CONFLICT (login_server_id)
 					DO UPDATE SET
 						hmac_key = EXCLUDED.hmac_key,
 						time_created = CURRENT_TIMESTAMP
 					RETURNING id, login_server_id, hmac_key, time_created";
 
-				return await dbContext.LoginServerSigningKeys
-					.FromSqlRaw(sql, loginServerId, hmacKey)
-					.AsNoTracking()
-					.FirstAsync(cancellationToken)
-					.ConfigureAwait(false);
+				return await ExecuteCommandSingleAsync(
+					dbContext,
+					sql,
+					command =>
+					{
+						AddParameter(command, "login_server_id", loginServerId);
+						AddParameter(command, "hmac_key", hmacKey);
+					},
+					reader => new LoginServerSigningKeyEntity
+					{
+						ID = reader.GetInt64(0),
+						LoginServerId = reader.GetInt64(1),
+						HmacKey = (byte[])reader.GetValue(2),
+						TimeCreated = reader.GetDateTime(3),
+					},
+					cancellationToken).ConfigureAwait(false);
 			}, saveChanges: false, cancellationToken: cancellationToken).ConfigureAwait(false);
 
 			return result.IsSuccess

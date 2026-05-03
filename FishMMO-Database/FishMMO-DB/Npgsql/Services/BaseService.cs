@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using System;
 using System.Data;
+using System.Data.Common;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
@@ -934,6 +935,73 @@ namespace FishMMO.Database.Npgsql.Services
 		/// </summary>
 		private static bool IsPgBouncerConfigurationSqlState(string? sqlState) =>
 			SqlStateHelper.IsPgBouncerConfigurationSqlState(sqlState);
+
+		/// <summary>
+		/// Executes a raw database command and maps the single returned row.
+		/// Use this for non-composable SQL such as INSERT/UPDATE ... RETURNING.
+		/// </summary>
+		protected static async Task<TResult> ExecuteCommandSingleAsync<TResult>(
+			NpgsqlDbContext dbContext,
+			string commandText,
+			Action<DbCommand> configureParameters,
+			Func<DbDataReader, TResult> map,
+			CancellationToken cancellationToken)
+		{
+			if (dbContext == null) throw new ArgumentNullException(nameof(dbContext));
+			if (string.IsNullOrWhiteSpace(commandText)) throw new ArgumentException("Command text must not be empty.", nameof(commandText));
+			if (configureParameters == null) throw new ArgumentNullException(nameof(configureParameters));
+			if (map == null) throw new ArgumentNullException(nameof(map));
+
+			var connection = dbContext.Database.GetDbConnection();
+			bool closeConnection = connection.State != ConnectionState.Open;
+			if (closeConnection)
+			{
+				await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+			}
+
+			try
+			{
+				using var command = connection.CreateCommand();
+				command.CommandText = commandText;
+
+				var currentTransaction = dbContext.Database.CurrentTransaction;
+				if (currentTransaction != null)
+				{
+					command.Transaction = currentTransaction.GetDbTransaction();
+				}
+
+				configureParameters(command);
+
+				using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+				if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+				{
+					throw new DatabaseException("The database command did not return a row.", errorCode: DatabaseErrorCodes.DatabaseError);
+				}
+
+				return map(reader);
+			}
+			finally
+			{
+				if (closeConnection)
+				{
+					connection.Close();
+				}
+			}
+		}
+
+		/// <summary>
+		/// Adds a provider-created parameter to a raw database command.
+		/// </summary>
+		protected static void AddParameter(DbCommand command, string name, object? value)
+		{
+			if (command == null) throw new ArgumentNullException(nameof(command));
+			if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Parameter name must not be empty.", nameof(name));
+
+			var parameter = command.CreateParameter();
+			parameter.ParameterName = name;
+			parameter.Value = value ?? DBNull.Value;
+			command.Parameters.Add(parameter);
+		}
 
 		/// <summary>
 		/// Executes a bulk UPSERT statement and enforces version/authority semantics by validating the affected row count.

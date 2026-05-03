@@ -40,10 +40,11 @@ namespace FishMMO.Database.Npgsql.Services
 					"Name and address must not be empty.");
 			}
 
+			int portValue = port;
 			var result = await ExecuteWriteAsync(async dbContext =>
 			{
 				var sql = $@"INSERT INTO {TableName} (name, address, port, character_count, locked)
-					VALUES ({{0}}, {{1}}, {{2}}, {{3}}, {{4}})
+					VALUES (@name, @address, @port, @character_count, @locked)
 					ON CONFLICT (name)
 					DO UPDATE SET
 						address = EXCLUDED.address,
@@ -53,11 +54,29 @@ namespace FishMMO.Database.Npgsql.Services
 						last_pulse = CURRENT_TIMESTAMP
 					RETURNING id, name, time_created, last_pulse, address, port, character_count, locked";
 
-				return await dbContext.SceneServers
-					.FromSqlRaw(sql, name, address, port, characterCount, locked)
-					.AsNoTracking()
-					.FirstAsync(cancellationToken)
-					.ConfigureAwait(false);
+				return await ExecuteCommandSingleAsync(
+					dbContext,
+					sql,
+					command =>
+					{
+						AddParameter(command, "name", name);
+						AddParameter(command, "address", address);
+						AddParameter(command, "port", portValue);
+						AddParameter(command, "character_count", characterCount);
+						AddParameter(command, "locked", locked);
+					},
+					reader => new SceneServerEntity
+					{
+						ID = reader.GetInt64(0),
+						Name = reader.GetString(1),
+						TimeCreated = reader.GetDateTime(2),
+						LastPulse = reader.GetDateTime(3),
+						Address = reader.GetString(4),
+						Port = (ushort)reader.GetInt32(5),
+						CharacterCount = reader.GetInt32(6),
+						Locked = reader.GetBoolean(7),
+					},
+					cancellationToken).ConfigureAwait(false);
 			}, saveChanges: false, cancellationToken: cancellationToken).ConfigureAwait(false);
 
 			if (!result.IsSuccess)

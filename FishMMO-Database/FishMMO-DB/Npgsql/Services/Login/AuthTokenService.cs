@@ -68,14 +68,31 @@ namespace FishMMO.Database.Npgsql.Services
 			var result = await ExecuteWriteAsync(async dbContext =>
 			{
 				var sql = $@"INSERT INTO {TableName} (token_hash, account_name, login_server_id, expires_utc, revoked)
-					VALUES ({{0}}, {{1}}, {{2}}, {{3}}, {{4}})
+					VALUES (@token_hash, @account_name, @login_server_id, @expires_utc, @revoked)
 					RETURNING id, token_hash, account_name, login_server_id, time_created, expires_utc, revoked";
 
-				return await dbContext.AuthTokens
-					.FromSqlRaw(sql, tokenHash, accountName, loginServerId, expiresUtc, false)
-					.AsNoTracking()
-					.FirstAsync(cancellationToken)
-					.ConfigureAwait(false);
+				return await ExecuteCommandSingleAsync(
+					dbContext,
+					sql,
+					command =>
+					{
+						AddParameter(command, "token_hash", tokenHash);
+						AddParameter(command, "account_name", accountName);
+						AddParameter(command, "login_server_id", loginServerId);
+						AddParameter(command, "expires_utc", expiresUtc);
+						AddParameter(command, "revoked", false);
+					},
+					reader => new AuthTokenEntity
+					{
+						ID = reader.GetInt64(0),
+						TokenHash = reader.GetString(1),
+						AccountName = reader.GetString(2),
+						LoginServerId = reader.GetInt64(3),
+						TimeCreated = reader.GetDateTime(4),
+						ExpiresUtc = reader.GetDateTime(5),
+						Revoked = reader.GetBoolean(6),
+					},
+					cancellationToken).ConfigureAwait(false);
 			}, saveChanges: false, cancellationToken: cancellationToken).ConfigureAwait(false);
 
 			return result.IsSuccess
