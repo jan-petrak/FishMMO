@@ -89,9 +89,7 @@ namespace FishMMO.Shared
 			double z = Math.Cos(phi);
 
 			// Unsafe.As is used for fast double-to-float conversion
-			return new Vector3(Unsafe.As<double, float>(ref x),
-							   Unsafe.As<double, float>(ref y),
-							   Unsafe.As<double, float>(ref z));
+			return new Vector3((float)x, (float)y, (float)z);
 		}
 
 		/// <summary>

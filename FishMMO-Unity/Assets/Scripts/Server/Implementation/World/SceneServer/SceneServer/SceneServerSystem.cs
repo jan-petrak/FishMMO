@@ -171,8 +171,9 @@ namespace FishMMO.Server.Implementation.World.SceneServer
 			// Register scene server in database (Task.Run avoids deadlock from
 			// Unity's SynchronizationContext when blocking on async during init)
 			int characterCount = characterMappingData.ConnectionCharacters.Count;
+			string sceneServerName = name;
 			DatabaseResult<(long ServerId, SceneServerData ServerData)> persistResult = Task.Run(() =>
-				sceneServerService.PersistAsync(name, server.Address, server.Port, characterCount, runtimeData.IsLocked))
+				sceneServerService.PersistAsync(sceneServerName, server.Address, server.Port, characterCount, runtimeData.IsLocked))
 				.GetAwaiter().GetResult();
 
 			if (!persistResult.IsSuccess)
@@ -727,11 +728,14 @@ namespace FishMMO.Server.Implementation.World.SceneServer
 				// Process the scene by adding it to the world dictionary mappings.
 				ProcessScene(scene, sceneType, sceneData.WorldServerID);
 
-				Log.Debug("SceneServerSystem", $"Saved {sceneType} scene {scene.name}:{scene.handle} to the database.");
-				if (!TryEnqueueAsyncWork(() => SetSceneReadyAsync(runtimeData.ID, sceneData.WorldServerID, scene.name, scene.handle), runtimeData.ID))
+				string loadedSceneName = scene.name;
+				int loadedSceneHandle = scene.handle;
+
+				Log.Debug("SceneServerSystem", $"Saved {sceneType} scene {loadedSceneName}:{loadedSceneHandle} to the database.");
+				if (!TryEnqueueAsyncWork(() => SetSceneReadyAsync(runtimeData.ID, sceneData.WorldServerID, loadedSceneName, loadedSceneHandle), runtimeData.ID))
 				{
-					Log.Warning("SceneServerSystem", $"Failed to enqueue async SetSceneReady: Scene={scene.name}:{scene.handle}. Firing directly.");
-					_ = SetSceneReadyAsync(runtimeData.ID, sceneData.WorldServerID, scene.name, scene.handle);
+					Log.Warning("SceneServerSystem", $"Failed to enqueue async SetSceneReady: Scene={loadedSceneName}:{loadedSceneHandle}. Firing directly.");
+					_ = SetSceneReadyAsync(runtimeData.ID, sceneData.WorldServerID, loadedSceneName, loadedSceneHandle);
 				}
 			}
 		}

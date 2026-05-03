@@ -72,7 +72,7 @@ namespace FishMMO.WebServer
 						Log.Info("Services", "Registering services...");
 
 						services.AddSingleton(new NpgsqlDbConfiguration(context.Configuration));
-						services.AddSingleton<NpgsqlDbContextFactory>();
+						services.AddSingleton(sp => new NpgsqlDbContextFactory(sp.GetRequiredService<NpgsqlDbConfiguration>()));
 						services.AddMemoryCache();
 						services.AddControllers();
 
