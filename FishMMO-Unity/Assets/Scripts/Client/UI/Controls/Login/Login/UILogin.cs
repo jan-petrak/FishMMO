@@ -368,8 +368,8 @@ namespace FishMMO.Client
 		/// </summary>
 		public void OnClick_Login()
 		{
-			string usernameText = Username.text;
-			string emailText = Email.text;
+			string usernameText = Username != null ? Username.text : string.Empty;
+			string emailText = Email != null ? Email.text : string.Empty;
 
 			// Determine which identifier to use: prefer email if filled, otherwise username.
 			string identifier;
@@ -386,7 +386,8 @@ namespace FishMMO.Client
 				return;
 			}
 
-			if (!Authentication.IsAllowedPassword(Password.text))
+			if (Password == null ||
+				!Authentication.IsAllowedPassword(Password.text))
 			{
 				return;
 			}
@@ -450,12 +451,12 @@ namespace FishMMO.Client
 		/// <param name="locked">True to lock (disable) controls, false to unlock.</param>
 		public void SetSignInLocked(bool locked)
 		{
-			RegisterButton.interactable = !locked;
-			SignInButton.interactable = !locked;
-			Username.enabled = !locked;
-			Email.enabled = !locked;
-			Password.enabled = !locked;
-			AgeSelect.interactable = !locked;
+			if (RegisterButton != null) RegisterButton.interactable = !locked;
+			if (SignInButton != null) SignInButton.interactable = !locked;
+			if (Username != null) Username.enabled = !locked;
+			if (Email != null) Email.enabled = !locked;
+			if (Password != null) Password.enabled = !locked;
+			if (AgeSelect != null) AgeSelect.interactable = !locked;
 		}
 	}
 }
