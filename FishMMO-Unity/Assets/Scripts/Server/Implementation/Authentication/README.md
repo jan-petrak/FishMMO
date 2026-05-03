@@ -96,12 +96,12 @@ Workers enqueue `Action` delegates into a `ConcurrentQueue<Action>`, drained eac
 - **Token generation and issuance** — LoginServer generates HMAC-signed auth tokens with configurable expiration (default 10 min), encrypted with session keys, and persisted for revocation support.
 - **Token revocation** — World/Scene servers verify token revocation status via database hash lookup before granting access.
 - **Protocol version negotiation** — `CryptoHelper.NegotiateProtocolVersion` with version range binding in the ECDH transcript hash prevents downgrade attacks.
-- **TOTP two-factor authentication** — After SRP proof, accounts with 2FA enabled enter a TOTP verification phase. TOTP secrets are AES-256-GCM encrypted at rest with a server-side master key. Codes are verified with a ±1 step window and anti-replay via persisted last-used window.
+- **TOTP two-factor authentication** — When login-server 2FA is enabled, accounts with 2FA enabled enter a TOTP verification phase after SRP proof. TOTP secrets are AES-256-GCM encrypted at rest with a server-side master key. Codes are verified with a ±1 step window and anti-replay via persisted last-used window.
 - **Recovery code login** — When the authenticator app is unavailable, users can submit a single-use recovery code (XXXXX-XXXXX hex format) instead of a 6-digit TOTP code. The code is verified against PBKDF2-SHA256 hashes via `ITwoFactorRecoveryCodeService` and consumed after use.
 - **Per-username TOTP brute-force protection** — Failed TOTP/recovery code attempts are tracked per username (lowercased, cross-connection). After 15 failures within a 30-minute window, further attempts are rejected until the lockout expires. A bounded sweep (64 max scan) evicts stale entries.
 - **Per-connection TOTP attempt cap** — Each connection is limited to 5 TOTP attempts via `TotpPendingState.Attempts`. Exceeding the cap disconnects the client.
 - **TOTP concurrency limiter** — A semaphore (`MaxConcurrentTotpVerifications = 4`) limits parallel TOTP/recovery code verifications to bound CPU cost from PBKDF2 operations.
-- **Email enumeration prevention** — For email-based login, unverified accounts receive the same fake SRP flow as non-existent accounts, preventing account-existence disclosure via the `AccountUnverified` response code. Username-based login still returns `AccountUnverified` for user-friendly UX.
+- **Email enumeration prevention** — When account verification is enabled, email-based login for unverified accounts receives the same fake SRP flow as non-existent accounts, preventing account-existence disclosure via the `AccountUnverified` response code. Username-based login still returns `AccountUnverified` for user-friendly UX.
 
 ## Prerequisites
 

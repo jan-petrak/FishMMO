@@ -62,5 +62,13 @@ namespace FishMMO.Server.Core
 		/// <param name="value">When this method returns <c>true</c>, contains the integer value associated with <paramref name="key"/>; otherwise <c>0</c> (or the default provided by the underlying implementation).</param>
 		/// <returns><c>true</c> if the key exists and a value was retrieved; otherwise <c>false</c>.</returns>
 		bool TryGetInt(string key, out int value);
+
+		/// <summary>
+		/// Attempts to retrieve a boolean value from the configuration for the specified <paramref name="key"/>.
+		/// </summary>
+		/// <param name="key">The configuration key to look up.</param>
+		/// <param name="value">When this method returns <c>true</c>, contains the boolean value associated with <paramref name="key"/>; otherwise <c>false</c> (or the default provided by the underlying implementation).</param>
+		/// <returns><c>true</c> if the key exists and a value was retrieved; otherwise <c>false</c>.</returns>
+		bool TryGetBool(string key, out bool value);
 	}
 }

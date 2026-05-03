@@ -27,6 +27,7 @@ namespace FishMMO.Server.Core
 		/// <param name="workingDirectory">The working directory for the server.</param>
 		public void SaveDefaultsIfMissing(string serverTypeName, string serverType, string workingDirectory)
 		{
+			ServerType type = GetServerType(serverTypeName);
 			if (!config.Load(serverTypeName))
 			{
 				// Set default values if the config file doesn't exist
@@ -36,6 +37,28 @@ namespace FishMMO.Server.Core
 				config.Set("Port", GetDefaultPort(serverTypeName));
 				config.Set("StaleSceneTimeout", 5);
 				config.Set("ServerType", serverType);
+				if (type == ServerType.Login)
+				{
+					config.Set("EnableTwoFactorAuthentication", true);
+					config.Set("EnableAccountVerification", true);
+				}
+#if !UNITY_EDITOR
+				config.Save();
+#endif
+				return;
+			}
+
+			if (type == ServerType.Login && !config.Exists("EnableTwoFactorAuthentication"))
+			{
+				config.Set("EnableTwoFactorAuthentication", true);
+#if !UNITY_EDITOR
+				config.Save();
+#endif
+			}
+
+			if (type == ServerType.Login && !config.Exists("EnableAccountVerification"))
+			{
+				config.Set("EnableAccountVerification", true);
 #if !UNITY_EDITOR
 				config.Save();
 #endif
@@ -119,6 +142,17 @@ namespace FishMMO.Server.Core
 		public bool TryGetInt(string key, out int value)
 		{
 			return config.TryGetInt(key, out value);
+		}
+
+		/// <summary>
+		/// Attempts to retrieve a boolean value from the configuration for the specified <paramref name="key"/>.
+		/// </summary>
+		/// <param name="key">The configuration key to look up.</param>
+		/// <param name="value">When this method returns <c>true</c>, contains the boolean value associated with <paramref name="key"/>; otherwise <c>false</c> (or the default provided by the underlying implementation).</param>
+		/// <returns><c>true</c> if the key exists and a value was retrieved; otherwise <c>false</c>.</returns>
+		public bool TryGetBool(string key, out bool value)
+		{
+			return config.TryGetBool(key, out value);
 		}
 
 		/// <summary>

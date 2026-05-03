@@ -75,6 +75,21 @@ namespace FishMMO.Client
 		private string pendingVerifyUsername;
 
 		/// <summary>
+		/// True once the server has sent registration-time 2FA setup data.
+		/// </summary>
+		private bool twoFactorSetupReceived;
+
+		/// <summary>
+		/// True while the registration-time 2FA setup dialog is open.
+		/// </summary>
+		private bool twoFactorSetupDialogOpen;
+
+		/// <summary>
+		/// True when account verification completes while the 2FA setup dialog is still open.
+		/// </summary>
+		private bool accountVerifiedWhileShowingTwoFactorSetup;
+
+		/// <summary>
 		/// Called when the client is set. Subscribes to connection and authentication events.
 		/// </summary>
 		public override void OnClientSet()
@@ -101,7 +116,7 @@ namespace FishMMO.Client
 		{
 			base.OnQuitToLogin();
 
-			pendingVerifyUsername = null;
+			ResetRegistrationState();
 			ClearAllFields();
 			SetFormLocked(false);
 		}
@@ -126,7 +141,7 @@ namespace FishMMO.Client
 			{
 				StatusMessage.text = "";
 				SetFormLocked(false);
-				pendingVerifyUsername = null;
+				ResetRegistrationState();
 			}
 		}
 
@@ -174,14 +189,19 @@ namespace FishMMO.Client
 		}
 
 		/// <summary>
-		/// Handles successful account creation: hides the form and waits for the 2FA setup broadcast.
-		/// The verify code dialog is opened later by <see cref="OnTwoFactorSetupReceived"/>.
+		/// Handles successful account creation. If 2FA setup has already arrived, the 2FA
+		/// dialog controls the next step; otherwise continue directly to email verification.
 		/// </summary>
 		private void OnAccountCreated()
 		{
 			SetFormLocked(true);
 			Hide();
-			StatusMessage.text = "Setting up two-factor authentication...";
+			StatusMessage.text = "Account created.";
+
+			if (!twoFactorSetupReceived)
+			{
+				OpenVerifyCodeDialog();
+			}
 		}
 
 		/// <summary>
@@ -194,6 +214,9 @@ namespace FishMMO.Client
 			{
 				return;
 			}
+
+			twoFactorSetupReceived = true;
+			twoFactorSetupDialogOpen = true;
 
 			// Save recovery codes and otpauth URI to disk immediately so the user
 			// has a persistent copy even if they close the dialog or lose the codes.
@@ -217,7 +240,7 @@ namespace FishMMO.Client
 				"Recovery Codes (save these somewhere safe!):\n\n" +
 				codesDisplay + "\n\n" +
 				(savePath != null ? $"Saved to: {savePath}\n\n" : "") +
-				"Press Confirm to continue to email verification.";
+				"Press Confirm to continue.";
 
 			if (UIManager.TryGet("UIDialogBox", out UIDialogBox uiDialogBox))
 			{
@@ -225,11 +248,19 @@ namespace FishMMO.Client
 					message,
 					() =>
 					{
-						OpenVerifyCodeDialog();
+						twoFactorSetupDialogOpen = false;
+						if (accountVerifiedWhileShowingTwoFactorSetup)
+						{
+							CompleteAccountVerified();
+						}
+						else
+						{
+							OpenVerifyCodeDialog();
+						}
 					},
 					() =>
 					{
-						pendingVerifyUsername = null;
+						ResetRegistrationState();
 						Client.ForceDisconnect();
 						SetFormLocked(false);
 						if (UIManager.TryGet("UILogin", out UILogin uiLogin))
@@ -258,7 +289,7 @@ namespace FishMMO.Client
 					},
 					() =>
 					{
-						pendingVerifyUsername = null;
+						ResetRegistrationState();
 						Client.ForceDisconnect();
 						SetFormLocked(false);
 						if (UIManager.TryGet("UILogin", out UILogin uiLogin))
@@ -274,7 +305,21 @@ namespace FishMMO.Client
 		/// </summary>
 		private void OnAccountVerified()
 		{
-			pendingVerifyUsername = null;
+			if (twoFactorSetupDialogOpen)
+			{
+				accountVerifiedWhileShowingTwoFactorSetup = true;
+				return;
+			}
+
+			CompleteAccountVerified();
+		}
+
+		/// <summary>
+		/// Completes successful account verification by disconnecting and returning to login.
+		/// </summary>
+		private void CompleteAccountVerified()
+		{
+			ResetRegistrationState();
 			Client.ForceDisconnect();
 			SetFormLocked(false);
 
@@ -299,7 +344,7 @@ namespace FishMMO.Client
 			{
 				uiDialogBox.Open(message);
 			}
-			pendingVerifyUsername = null;
+			ResetRegistrationState();
 			Client.ForceDisconnect();
 			SetFormLocked(false);
 		}
@@ -355,6 +400,9 @@ namespace FishMMO.Client
 			},
 			(servers) =>
 			{
+				twoFactorSetupReceived = false;
+				twoFactorSetupDialogOpen = false;
+				accountVerifiedWhileShowingTwoFactorSetup = false;
 				pendingVerifyUsername = username;
 				Connect(username, password, email, ageIndex);
 			}));
@@ -365,6 +413,7 @@ namespace FishMMO.Client
 		/// </summary>
 		public void OnClick_QuitToLogin()
 		{
+			ResetRegistrationState();
 			ClearAllFields();
 			Hide();
 
@@ -421,6 +470,17 @@ namespace FishMMO.Client
 			if (Password != null) Password.text = "";
 			if (Key != null) Key.text = "";
 			if (AgeSelect != null) AgeSelect.value = 0;
+		}
+
+		/// <summary>
+		/// Clears transient registration state for verification and optional 2FA setup.
+		/// </summary>
+		private void ResetRegistrationState()
+		{
+			pendingVerifyUsername = null;
+			twoFactorSetupReceived = false;
+			twoFactorSetupDialogOpen = false;
+			accountVerifiedWhileShowingTwoFactorSetup = false;
 		}
 
 		/// <summary>

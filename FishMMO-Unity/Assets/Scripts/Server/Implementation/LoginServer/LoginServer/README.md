@@ -86,6 +86,8 @@ This is an integrated module within the FishMMO Unity project. No separate insta
 | Field | Type | Default | Source | Purpose |
 |-------|------|---------|--------|---------|
 | `pulseRate` | `float` | `5.0f` | `[SerializeField]` on `LoginServerSystem` | Interval in seconds between database heartbeat pulses |
+| `EnableTwoFactorAuthentication` | `bool` | `true` | Server configuration (`IServerConfiguration`) | Enables registration-time TOTP setup and login-time TOTP enforcement |
+| `EnableAccountVerification` | `bool` | `true` | Server configuration (`IServerConfiguration`) | Enables registration verification codes and unverified-account login rejection |
 | `ServerName` | `string` | — | Server configuration (`IServerConfiguration`) | Display name registered in the database for this login server |
 | Server address / port | `ServerAddress` | — | `IServerAddressProvider` | Public network endpoint registered in the database |
 

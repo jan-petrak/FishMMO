@@ -223,6 +223,36 @@ namespace FishMMO.Server.Implementation
 		}
 
 		/// <summary>
+		/// Volatile backing field for <see cref="EnableTwoFactorAuthentication"/>.
+		/// </summary>
+		private volatile bool _enableTwoFactorAuthentication = true;
+
+		/// <summary>
+		/// Enables the TOTP login challenge for accounts whose database flag is set.
+		/// Set by LoginServerSystem from server configuration.
+		/// </summary>
+		public bool EnableTwoFactorAuthentication
+		{
+			get => _enableTwoFactorAuthentication;
+			set => _enableTwoFactorAuthentication = value;
+		}
+
+		/// <summary>
+		/// Volatile backing field for <see cref="EnableAccountVerification"/>.
+		/// </summary>
+		private volatile bool _enableAccountVerification = true;
+
+		/// <summary>
+		/// Enables rejecting accounts whose email verification flag has not been set.
+		/// Set by LoginServerSystem from server configuration.
+		/// </summary>
+		public bool EnableAccountVerification
+		{
+			get => _enableAccountVerification;
+			set => _enableAccountVerification = value;
+		}
+
+		/// <summary>
 		/// Maximum concurrent TOTP verification tasks.
 		/// Bounds thread-pool usage for TOTP processing, unlike SRP which uses bounded channels.
 		/// </summary>
@@ -866,8 +896,8 @@ namespace FishMMO.Server.Implementation
 					{
 						Database.Data.AccountData accountData = loginResult.Data;
 
-						// Reject unverified accounts.
-						if (!accountData.Verified)
+						// Reject unverified accounts when account verification is enabled.
+						if (EnableAccountVerification && !accountData.Verified)
 						{
 							if (isEmail)
 							{
@@ -1119,7 +1149,7 @@ namespace FishMMO.Server.Implementation
 				// account requires TOTP verification before completing login.
 				// TotpEnabled was cached during ProcessSrpVerifyAsync to avoid a
 				// redundant database fetch here.
-				if (result == ClientAuthenticationResult.LoginSuccess)
+				if (result == ClientAuthenticationResult.LoginSuccess && EnableTwoFactorAuthentication)
 				{
 					bool totpRequired = false;
 					byte[] totpMasterKeySnapshot = TotpMasterKey;

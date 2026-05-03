@@ -61,6 +61,18 @@ namespace FishMMO.Server.Implementation.LoginServer
 				return ServerComponentInitializationStatus.FailedToFindRequiredDependency;
 			}
 
+			bool enableTwoFactorAuthentication = true;
+			if (Server.Configuration.TryGetBool("EnableTwoFactorAuthentication", out bool configuredTwoFactorAuthentication))
+			{
+				enableTwoFactorAuthentication = configuredTwoFactorAuthentication;
+			}
+
+			bool enableAccountVerification = true;
+			if (Server.Configuration.TryGetBool("EnableAccountVerification", out bool configuredAccountVerification))
+			{
+				enableAccountVerification = configuredAccountVerification;
+			}
+
 			// Register login server in database
 			if (Server.Database?.ServiceRegistry == null ||
 				!Server.Database.ServiceRegistry.TryGet<ILoginServerService>(out var loginServerService))
@@ -124,6 +136,8 @@ namespace FishMMO.Server.Implementation.LoginServer
 			{
 				authenticator.TokenSigningKey = hmacKey;
 				authenticator.LoginServerId = runtimeData.ID;
+				authenticator.EnableTwoFactorAuthentication = enableTwoFactorAuthentication;
+				authenticator.EnableAccountVerification = enableAccountVerification;
 
 				// Derive a TOTP master key from the HMAC signing key using HMAC-SHA256
 				// with a domain separator. This key encrypts TOTP secrets at rest in the DB.
@@ -139,6 +153,8 @@ namespace FishMMO.Server.Implementation.LoginServer
 					accountSystem is AccountCreationSystem concreteAccountSystem)
 				{
 					concreteAccountSystem.TotpMasterKey = totpMasterKey;
+					concreteAccountSystem.EnableTwoFactorAuthentication = enableTwoFactorAuthentication;
+					concreteAccountSystem.EnableAccountVerification = enableAccountVerification;
 				}
 			}
 			else
@@ -153,7 +169,7 @@ namespace FishMMO.Server.Implementation.LoginServer
 				periodicSystem.RegisterPeriodicCallback(PulseRate, OnPeriodicPulse);
 			}
 
-			Log.Debug("LoginServerSystem", $"Initialized (ServerID={runtimeData.ID}, Address={server.Address}:{server.Port}, PulseRate={PulseRate}s)");
+			Log.Debug("LoginServerSystem", $"Initialized (ServerID={runtimeData.ID}, Address={server.Address}:{server.Port}, PulseRate={PulseRate}s, 2FA={enableTwoFactorAuthentication}, AccountVerification={enableAccountVerification})");
 			return ServerComponentInitializationStatus.Initialized;
 		}
 

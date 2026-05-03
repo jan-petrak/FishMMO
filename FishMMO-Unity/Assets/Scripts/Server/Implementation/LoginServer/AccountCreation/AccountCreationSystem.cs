@@ -139,6 +139,36 @@ namespace FishMMO.Server.Implementation.LoginServer
 		public byte[] TotpMasterKey { get; set; }
 
 		/// <summary>
+		/// Volatile backing field for <see cref="EnableTwoFactorAuthentication"/>.
+		/// </summary>
+		private volatile bool _enableTwoFactorAuthentication = true;
+
+		/// <summary>
+		/// Enables generating mandatory TOTP setup data for newly created accounts.
+		/// Set by LoginServerSystem from server configuration.
+		/// </summary>
+		public bool EnableTwoFactorAuthentication
+		{
+			get => _enableTwoFactorAuthentication;
+			set => _enableTwoFactorAuthentication = value;
+		}
+
+		/// <summary>
+		/// Volatile backing field for <see cref="EnableAccountVerification"/>.
+		/// </summary>
+		private volatile bool _enableAccountVerification = true;
+
+		/// <summary>
+		/// Enables issuing and requiring an account verification code after registration.
+		/// Set by LoginServerSystem from server configuration.
+		/// </summary>
+		public bool EnableAccountVerification
+		{
+			get => _enableAccountVerification;
+			set => _enableAccountVerification = value;
+		}
+
+		/// <summary>
 		/// Maximum allowed length for the decrypted SRP salt string.
 		/// </summary>
 		private const int MaxSaltLength = 256;
@@ -696,19 +726,37 @@ namespace FishMMO.Server.Implementation.LoginServer
 							// Clear failure tracker on success
 							mappingData.IpFailureTracker.TryRemove(request.IpAddress, out _);
 
+							// Generate a verification code when account verification is enabled;
+							// otherwise mark the development account verified immediately.
 							// Generate and store a verification code for email verification.
 							// 6-digit numerical code (100000–999999): 900,000 possible values.
 							// Brute-force is mitigated by the per-IP IpFailureTracker which blocks
 							// after maxFailedAttempts (default 5). The code is single-use and expires
 							// via DB-level TTL, so the effective attack window is narrow.
-							int verifyCode = RandomNumberGenerator.GetInt32(100000, 1000000);
-							DatabaseResult verifyResult = await accountService.PersistVerifyCodeAsync(username, verifyCode);
-							if (!verifyResult.IsSuccess)
+							if (EnableAccountVerification)
 							{
-								await Log.Warning("AccountCreationSystem", $"PersistVerifyCodeAsync DB error for user '{username}': {verifyResult.ErrorCode} - {verifyResult.ErrorMessage}");
+								int verifyCode = RandomNumberGenerator.GetInt32(100000, 1000000);
+								DatabaseResult verifyResult = await accountService.PersistVerifyCodeAsync(username, verifyCode);
+								if (!verifyResult.IsSuccess)
+								{
+									await Log.Warning("AccountCreationSystem", $"PersistVerifyCodeAsync DB error for user '{username}': {verifyResult.ErrorCode} - {verifyResult.ErrorMessage}");
+								}
+							}
+							else
+							{
+								DatabaseResult verifiedResult = await accountService.PersistVerifiedAsync(username, 0);
+								if (verifiedResult.IsSuccess)
+								{
+									result = ClientAuthenticationResult.AccountVerified;
+								}
+								else
+								{
+									await Log.Warning("AccountCreationSystem", $"PersistVerifiedAsync DB error for user '{username}': {verifiedResult.ErrorCode} - {verifiedResult.ErrorMessage}");
+									result = ClientAuthenticationResult.ServerBusy;
+								}
 							}
 
-							// Generate and store mandatory 2FA setup.
+							// Generate and store 2FA setup when enabled for this login server.
 							// Snapshot TotpMasterKey to prevent a TOCTOU race:
 							// the field could be zeroed or rotated between the null/length
 							// check and the EncryptTotpSecret call. Capturing a local
@@ -716,7 +764,10 @@ namespace FishMMO.Server.Implementation.LoginServer
 							// the encrypt call. This is safe even without a lock because the
 							// field is only written at startup/shutdown (single-writer).
 							byte[] totpMasterKeySnapshot = TotpMasterKey;
-							if (totpMasterKeySnapshot != null && totpMasterKeySnapshot.Length == 32)
+							if (result != ClientAuthenticationResult.ServerBusy &&
+								EnableTwoFactorAuthentication &&
+								totpMasterKeySnapshot != null &&
+								totpMasterKeySnapshot.Length == 32)
 							{
 								try
 								{

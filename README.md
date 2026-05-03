@@ -560,6 +560,8 @@ MaximumClients=4000
 Address=127.0.0.1
 Port=7770
 StaleSceneTimeout=5
+EnableTwoFactorAuthentication=true
+EnableAccountVerification=true
 ```
 
 #### WorldServer.cfg
@@ -589,6 +591,8 @@ StaleSceneTimeout=5
 | `Address` | Bind address (`127.0.0.1` for dev, `0.0.0.0` for production) | varies |
 | `Port` | Listen port (Login=7770, World=7780, Scene=7781+) | varies |
 | `StaleSceneTimeout` | Seconds before idle scenes are considered stale | 5 |
+| `EnableTwoFactorAuthentication` | Login server only: creates/enforces TOTP 2FA when true | true |
+| `EnableAccountVerification` | Login server only: creates/enforces registration verification codes when true | true |
 
 **Format:** Simple `key=value` per line. Lines starting with `#` or `;` are comments.
 

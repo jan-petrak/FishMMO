@@ -65,9 +65,9 @@ The request pipeline follows four stages:
 - **Graceful shutdown** — full queue drain on deinitialize ensures clients receive final responses
 - **Stateless behaviour** — all mutable state in `RuntimeDataContainer` instances; system logic is pure and testable
 - **Engine-agnostic core** — interface/implementation split with generic `TConnection` parameter
-- **Account verification** — encrypted verification code flow via `AccountVerifyBroadcast`; validates codes against database before marking accounts as verified
+- **Account verification** — optional encrypted verification code flow via `AccountVerifyBroadcast`; validates codes against database before marking accounts as verified
 - **Per-username verification brute-force protection** — failed verification attempts tracked per username (lowercased). After 10 failures within 30 minutes, further attempts are rejected until the lockout expires. Bounded sweep (64 max scan) evicts stale entries. Hard cap of 50,000 tracked entries prevents memory exhaustion.
-- **Mandatory 2FA setup** — account creation generates a TOTP secret (encrypted at rest with the server-side master key), recovery codes (PBKDF2-SHA256 hashed), and delivers the otpauth URI and plaintext recovery codes to the client via AES-encrypted transport
+- **Optional 2FA setup** — when enabled by login-server configuration, account creation generates a TOTP secret (encrypted at rest with the server-side master key), recovery codes (PBKDF2-SHA256 hashed), and delivers the otpauth URI and plaintext recovery codes to the client via AES-encrypted transport
 
 ## Prerequisites
 
