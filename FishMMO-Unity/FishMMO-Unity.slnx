@@ -1,14 +1,21 @@
 ﻿<Solution>
   <Project Path="Assembly-CSharp.csproj" />
+  <Project Path="Unity.Addressables.Editor.csproj" />
   <Project Path="FishNet.Runtime.csproj" />
+  <Project Path="Unity.Addressables.Editor.Tests.csproj" />
   <Project Path="Assembly-CSharp-firstpass.csproj" />
   <Project Path="Assembly-CSharp-Editor.csproj" />
+  <Project Path="Unity.ResourceManager.csproj" />
+  <Project Path="Unity.Addressables.DocExampleCode.Editor.Tests.csproj" />
   <Project Path="Unity.FishNet.Codegen.csproj" />
   <Project Path="FishNet.Codegen.Cecil.csproj" />
   <Project Path="GameKit.Dependencies.csproj" />
+  <Project Path="Unity.ResourceManager.Tests.csproj" />
   <Project Path="SimpleWebTransport.csproj" />
   <Project Path="Bayou.csproj" />
   <Project Path="SimpleWebRTC.csproj" />
   <Project Path="FishNet.Demos.csproj" />
+  <Project Path="Unity.Addressables.csproj" />
+  <Project Path="Unity.Addressables.Runtime.Tests.csproj" />
   <Project Path="Assembly-CSharp-Editor-firstpass.csproj" />
 </Solution>
