@@ -38,6 +38,12 @@ namespace FishMMO.Shared
 			public static readonly string APIHost = "https://api.fishmmo.com/";
 
 			/// <summary>
+			/// Patch API Host URL. Defaults to the unified API host when patch endpoints
+			/// are routed by the same gateway.
+			/// </summary>
+			public static readonly string PatchAPIHost = APIHost;
+
+			/// <summary>
 			/// NGINX game WebSocket hostname for Bayou/WebGL clients.
 			/// WebGL clients connect via wss://GameHost/ws/{port} instead of direct IP:port.
 			/// NGINX dynamically routes /ws/{port} to the correct backend game server.

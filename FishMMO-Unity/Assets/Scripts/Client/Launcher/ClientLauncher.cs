@@ -115,6 +115,7 @@ namespace FishMMO.Client
 		/// Full path to the external updater executable.
 		/// </summary>
 		private string updaterPath;
+		private const string PatchApiHostKey = "PatchAPIHost";
 
 		/// <summary>
 		/// The current state of the launcher UI and process.
@@ -351,7 +352,7 @@ namespace FishMMO.Client
 
 		/// <summary>
 		/// Initiates the connection process to check for game updates.
-		/// All requests go through the unified API gateway (Constants.Configuration.APIHost).
+		/// Patch requests use the configured patch API host, defaulting to the unified API host.
 		/// </summary>
 		public void PlayButton_Connect()
 		{
@@ -406,10 +407,11 @@ namespace FishMMO.Client
 			SetLauncherState(LauncherState.DownloadingPatch);
 
 			string tempFilePath = Constants.GetTemporaryPath();
+			string patchApiHost = GetPatchApiHost();
 
 			// Delegate patch download to patch server service
 			StartCoroutine(PatchServerService.DownloadPatch(
-				$"{Constants.Configuration.APIHost}{MainBootstrapSystem.GameVersion}",
+				$"{patchApiHost}{MainBootstrapSystem.GameVersion}",
 				tempFilePath,
 				onComplete: () =>
 				{
@@ -452,10 +454,11 @@ namespace FishMMO.Client
 		private IEnumerator GetLatestVersion()
 		{
 			SetLauncherState(LauncherState.CheckingVersion);
+			string patchApiHost = GetPatchApiHost();
 
 			// Delegate to patch server service
 			yield return StartCoroutine(PatchServerService.GetLatestVersion(
-				Constants.Configuration.APIHost,
+				patchApiHost,
 				onComplete: (serverVersion) =>
 				{
 					latestVersionString = serverVersion.ToString(); // Store for updater launch
@@ -493,6 +496,46 @@ namespace FishMMO.Client
 					Log.Error("ClientLauncher", error);
 					SetLauncherState(LauncherState.VersionCheckFailed);
 				}));
+		}
+
+		private string GetPatchApiHost()
+		{
+			EnsureGlobalConfigurationLoaded();
+
+			if (Configuration.GlobalSettings != null &&
+				Configuration.GlobalSettings.TryGetString(PatchApiHostKey, out string patchApiHost) &&
+				!string.IsNullOrWhiteSpace(patchApiHost))
+			{
+				return EnsureTrailingSlash(patchApiHost.Trim());
+			}
+
+			if (Configuration.GlobalSettings != null &&
+				Configuration.GlobalSettings.TryGetString("APIHost", out string apiHost) &&
+				!string.IsNullOrWhiteSpace(apiHost))
+			{
+				return EnsureTrailingSlash(apiHost.Trim());
+			}
+
+			return Constants.Configuration.PatchAPIHost;
+		}
+
+		private void EnsureGlobalConfigurationLoaded()
+		{
+			if (Configuration.GlobalSettings != null)
+			{
+				return;
+			}
+
+			Configuration configuration = new Configuration(Constants.GetWorkingDirectory());
+			if (configuration.Load(Configuration.DEFAULT_FILENAME))
+			{
+				Configuration.SetGlobalSettings(configuration);
+			}
+		}
+
+		private static string EnsureTrailingSlash(string apiHost)
+		{
+			return apiHost.EndsWith("/", StringComparison.Ordinal) ? apiHost : apiHost + "/";
 		}
 
 		/// <summary>
